@@ -1,0 +1,4 @@
+.pio
+build
+.vscode
+dependencies.lock
