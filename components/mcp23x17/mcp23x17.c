@@ -80,16 +80,6 @@ static const char *TAG = "mcp23x17";
 
 #ifdef CONFIG_MCP23X17_IFACE_I2C
 
-static esp_err_t read_reg_8(mcp23x17_t *dev, uint8_t reg, uint8_t *val)
-{
-    CHECK_ARG(dev && val);
-
-    I2C_DEV_TAKE_MUTEX(dev);
-    I2C_DEV_CHECK(dev, i2c_dev_read_reg(dev, reg, val, 1));
-    I2C_DEV_GIVE_MUTEX(dev);
-
-    return ESP_OK;
-}
 
 static esp_err_t read_reg_16(mcp23x17_t *dev, uint8_t reg, uint16_t *val)
 {
@@ -495,12 +485,7 @@ esp_err_t mcp23x17_set_interrupt(mcp23x17_t *dev, uint8_t pin, mcp23x17_gpio_int
     return mcp23x17_port_set_interrupt(dev, BV(pin), intr);
 }
 
-esp_err_t mcp23x17_get_int_a_pin_states(mcp23x17_t *dev, void *val)
+esp_err_t mcp23x17_get_int_pin_states(mcp23x17_t *dev, uint16_t *val)
 {
-    return read_reg_8(dev, REG_INTCAPA, (uint8_t*)val);
-}
-
-esp_err_t mcp23x17_get_int_b_pin_states(mcp23x17_t *dev, void *val)
-{
-    return read_reg_8(dev, REG_INTCAPB, (uint8_t*)val);
+    return read_reg_16(dev, REG_INTCAPA, val);
 }

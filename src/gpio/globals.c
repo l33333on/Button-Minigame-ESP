@@ -5,6 +5,8 @@ mcp23x17_t io_expander_dev1;  // left
 mcp23x17_t io_expander_dev2;  // middle
 mcp23x17_t io_expander_dev3;  // right
 
+mcp23x17_t *io_expander_devs[3];
+
 void init_gpio_globals() {
     memset(&io_expander_dev1, 0, sizeof(mcp23x17_t));
     memset(&io_expander_dev2, 0, sizeof(mcp23x17_t));
@@ -15,4 +17,7 @@ void init_gpio_globals() {
     io_expander_dev2.cfg.sda_pullup_en = false;
     io_expander_dev3.cfg.scl_pullup_en = false;
     io_expander_dev3.cfg.sda_pullup_en = false;
+    io_expander_devs[0] = &io_expander_dev1;
+    io_expander_devs[1] = &io_expander_dev2;
+    io_expander_devs[2] = &io_expander_dev3;
 }

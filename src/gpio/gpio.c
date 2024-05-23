@@ -7,63 +7,58 @@
 #include <freertos/task.h>
 #include <freertos/event_groups.h>
 
-static const char *TAG = "Button-Minigame-gpio";
-
-static EventGroupHandle_t eg = NULL;
 #define BIT_BUTTON_CHANGED BIT(0)
+
+static const char *TAG = "Button-Minigame-gpio";
+static EventGroupHandle_t eg = NULL;
+uint16_t last_io_expander_states[3];
+
+
 static void IRAM_ATTR intr_handler(void *arg)
 {
-    // On interrupt set bit in event group
     BaseType_t hp_task;
     if (xEventGroupSetBitsFromISR(eg, BIT_BUTTON_CHANGED, &hp_task) != pdFAIL)
         portYIELD_FROM_ISR(hp_task);
 }
 
-void print_binary(uint8_t num) {
-    // Bitmaske zum Überprüfen jedes Bits
-    uint16_t mask = 0b10000000;
-
-    // Iteriere über jedes Bit der Zahl
-    for (int i = 0; i < 8; i++) {
-        // Überprüfe, ob das aktuelle Bit gesetzt ist
-        if (num & mask) {
-            printf("1");
-        } else {
-            printf("0");
+static int get_changed_bit_position(uint16_t current, uint16_t previous) {
+    uint16_t changed = current ^ previous;  // XOR to find changed bits
+    
+    for (int i = 0; i < 16; i++) {
+        if (changed & (1 << i)) {
+            return i;
         }
-
-        // Verschiebe die Maske um ein Bit nach rechts für das nächste Bit
-        mask >>= 1;
     }
+    return -1;
 }
 
-void button_handler(void *pvParameters)
+static void button_handler(void *pvParameters)
 {
-    while (1)
-    {
-        // wait for BIT_BUTTON_CHANGED, clear it on exit
+    uint16_t io_expander_states;
+
+    for (;;) {
         if (xEventGroupWaitBits(eg, BIT_BUTTON_CHANGED, pdTRUE, pdTRUE, portMAX_DELAY) != BIT_BUTTON_CHANGED)
-            continue;
-        // OK, we got this bit set
-        ESP_LOGI(TAG, "Button was pressed!");
-        uint8_t test;
-        uint8_t test1;
-        mcp23x17_get_int_a_pin_states(&io_expander_dev1, &test);
-        mcp23x17_get_int_b_pin_states(&io_expander_dev1, &test1);
-        print_binary(test);
-        print_binary(test1);
-        printf("\n");
-        mcp23x17_get_int_a_pin_states(&io_expander_dev2, &test);
-        mcp23x17_get_int_b_pin_states(&io_expander_dev2, &test1);
-        print_binary(test);
-        print_binary(test1);
-        printf("\n");
-        mcp23x17_get_int_a_pin_states(&io_expander_dev3, &test);
-        mcp23x17_get_int_b_pin_states(&io_expander_dev3, &test1);
-        print_binary(test);
-        print_binary(test1);
-        printf("\n");
-        printf("\n");
+            continue;      
+
+        for (uint8_t i = 0; i < 3; i++) {
+            mcp23x17_get_int_pin_states(io_expander_devs[i], &io_expander_states);
+            // check if states differ from the previous states
+            int changed_bit_position = get_changed_bit_position(io_expander_states, last_io_expander_states[i]);
+            if (changed_bit_position == -1)  // no change
+                continue;
+
+            // get corresponding button
+            for (int j = 0; j < sizeof(IOExpanderInputs)/sizeof(IOExpanderInputs[0]); j++) {
+                if (IOExpanderInputs[j].io_expander_dev == io_expander_devs[i] && IOExpanderInputs[j].io_port == changed_bit_position) {
+                    // TODO -> send to button logic + "debounce"
+                    printf("%s\n", IOExpanderInputs[j].name);
+                    break;
+                }
+            }
+
+            last_io_expander_states[i] = io_expander_states;
+            break;
+        }
     }
 }
 
@@ -75,9 +70,9 @@ static void init_io_expanders() {
     io_expander_dev2.cfg.master.clk_speed = 400 * 1000;
     ESP_ERROR_CHECK(mcp23x17_init_desc(&io_expander_dev3, IO_EXPANDER3_ADDR, 0, IO_EXPANDER_SDA_PIN, IO_EXPANDER_SCL_PIN));  // right
     io_expander_dev3.cfg.master.clk_speed = 400 * 1000;
+    eg = xEventGroupCreate();
 
     // set initial io expander input states (pull up resistor, isr, etc.)
-    eg = xEventGroupCreate();
     for (int i = 0; i < sizeof(IOExpanderInputs)/sizeof(IOExpanderInputs[0]); i++) {
         mcp23x17_set_mode(IOExpanderInputs[i].io_expander_dev, IOExpanderInputs[i].io_port, MCP23X17_GPIO_INPUT);
         mcp23x17_set_pullup(IOExpanderInputs[i].io_expander_dev, IOExpanderInputs[i].io_port, true);
@@ -117,22 +112,10 @@ static void init_io_expanders() {
     gpio_isr_handler_add(IO_EXPANDER_3_INTA_PIN, intr_handler, NULL);
     gpio_isr_handler_add(IO_EXPANDER_3_INTB_PIN, intr_handler, NULL);
 
-    // initially clear the intcap registers by reading from them
-    mcp23x17_get_int_a_pin_states(&io_expander_dev1, NULL);
-    mcp23x17_get_int_a_pin_states(&io_expander_dev2, NULL);
-    mcp23x17_get_int_a_pin_states(&io_expander_dev3, NULL);
-    mcp23x17_get_int_b_pin_states(&io_expander_dev1, NULL);
-    mcp23x17_get_int_b_pin_states(&io_expander_dev2, NULL);
-    mcp23x17_get_int_b_pin_states(&io_expander_dev3, NULL);
-
-    // TODO -> remove
-    mcp23x17_set_mode(&io_expander_dev1, 5, MCP23X17_GPIO_INPUT);
-    mcp23x17_set_pullup(&io_expander_dev1, 5, true);
-    mcp23x17_set_interrupt(&io_expander_dev1, 5, MCP23X17_INT_ANY_EDGE);
-    mcp23x17_set_mode(&io_expander_dev1, 6, MCP23X17_GPIO_INPUT);
-    mcp23x17_set_pullup(&io_expander_dev1, 6, true);
-    mcp23x17_set_interrupt(&io_expander_dev1, 6, MCP23X17_INT_ANY_EDGE);
-
+    // initially clear the intcap registers by reading from them + set the initial button states / save them into the interrupt "buffer"
+    mcp23x17_get_int_pin_states(&io_expander_dev1, &last_io_expander_states[0]);
+    mcp23x17_get_int_pin_states(&io_expander_dev2, &last_io_expander_states[1]);
+    mcp23x17_get_int_pin_states(&io_expander_dev3, &last_io_expander_states[2]);
 }
 
 

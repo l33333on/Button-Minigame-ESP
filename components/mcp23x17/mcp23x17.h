@@ -216,8 +216,7 @@ esp_err_t mcp23x17_port_set_mode(mcp23x17_t *dev, uint16_t val);
  */
 esp_err_t mcp23x17_port_get_pullup(mcp23x17_t *dev, uint16_t *val);
 
-esp_err_t mcp23x17_get_int_a_pin_states(mcp23x17_t *dev, void *val);
-esp_err_t mcp23x17_get_int_b_pin_states(mcp23x17_t *dev, void *val);
+esp_err_t mcp23x17_get_int_pin_states(mcp23x17_t *dev, uint16_t *val);
 
 /**
  * @brief Set GPIO pullups status
