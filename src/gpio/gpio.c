@@ -6,12 +6,15 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/event_groups.h>
+#include "gpio/logic/globals.h"
+#include "gpio/logic/logic.h"
+#include "string.h"
 
 #define BIT_BUTTON_CHANGED BIT(0)
 
 static const char *TAG = "Button-Minigame-gpio";
 static EventGroupHandle_t eg = NULL;
-uint16_t last_io_expander_states[3];
+static uint16_t last_io_expander_states[3];
 
 
 static void IRAM_ATTR intr_handler(void *arg)
@@ -22,17 +25,17 @@ static void IRAM_ATTR intr_handler(void *arg)
 }
 
 static int get_changed_bit_position(uint16_t current, uint16_t previous) {
-    uint16_t changed = current ^ previous;  // XOR to find changed bits
+    uint16_t from_1_to_0 = previous & ~current;  // bits that changed from 1 to 0 -> only the pins which got pressed instead of released (the interrupt gets raised on any edge)
     
     for (int i = 0; i < 16; i++) {
-        if (changed & (1 << i)) {
+        if (from_1_to_0 & (1 << i)) {
             return i;
         }
     }
     return -1;
 }
 
-static void button_handler(void *pvParameters)
+static void gpio_isr_task(void *pvParameters)
 {
     uint16_t io_expander_states;
 
@@ -44,14 +47,25 @@ static void button_handler(void *pvParameters)
             mcp23x17_get_int_pin_states(io_expander_devs[i], &io_expander_states);
             // check if states differ from the previous states
             int changed_bit_position = get_changed_bit_position(io_expander_states, last_io_expander_states[i]);
-            if (changed_bit_position == -1)  // no change
+            if (changed_bit_position == -1){   // no change
+                last_io_expander_states[i] = io_expander_states;  // also save the states when a button is released
                 continue;
+            }
 
             // get corresponding button
             for (int j = 0; j < sizeof(IOExpanderInputs)/sizeof(IOExpanderInputs[0]); j++) {
                 if (IOExpanderInputs[j].io_expander_dev == io_expander_devs[i] && IOExpanderInputs[j].io_port == changed_bit_position) {
-                    // TODO -> send to button logic + "debounce"
-                    printf("%s\n", IOExpanderInputs[j].name);
+                    // "debounce" button
+                    uint64_t now = xTaskGetTickCount() * portTICK_PERIOD_MS;  // time in milliseconds
+                    uint64_t time_since_last_trigger = (now - IOExpanderInputs[j].last_trigger_time);
+                    if (time_since_last_trigger > DEBOUNCE_TIME_MS) {
+                        IOExpanderInputs[j].last_trigger_time = now;
+
+                        // call callback function
+                        if (strcmp(IOExpanderInputs[j].name, "ON_OFF_BTN") == 0) {
+                            on_off_btn_callback();
+                        }
+                    }
                     break;
                 }
             }
@@ -88,7 +102,7 @@ static void init_io_expanders() {
     }
 
     // run isr
-    xTaskCreate(button_handler, "button_handler", 4096, NULL, 5, NULL);
+    xTaskCreate(gpio_isr_task, "gpio_isr_task", 4096, NULL, 3, NULL);
     gpio_set_direction(IO_EXPANDER_1_INTA_PIN, GPIO_MODE_INPUT);
     gpio_set_direction(IO_EXPANDER_1_INTB_PIN, GPIO_MODE_INPUT);
     gpio_set_direction(IO_EXPANDER_2_INTA_PIN, GPIO_MODE_INPUT);
@@ -122,4 +136,5 @@ static void init_io_expanders() {
 void setup_gpios() {
     init_gpio_globals();
     init_io_expanders();
+    init_gpio_logic_globals();
 }
