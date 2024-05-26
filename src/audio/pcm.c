@@ -8,6 +8,8 @@
 #include "filesystem/sd_card.h"
 #include "configuration.h"
 #include <math.h>
+#include <string.h>
+#include "esp_heap_caps.h"
 
 #define EXAMPLE_I2S_DUPLEX_MODE     CONFIG_USE_DUPLEX
 #define EXAMPLE_STD_BCLK_IO1        EXAMPLE_I2S_BCLK_IO1      // I2S bit clock io number
@@ -15,48 +17,67 @@
 #define EXAMPLE_STD_DOUT_IO1        EXAMPLE_I2S_DOUT_IO1     // I2S data out io number
 #define EXAMPLE_STD_DIN_IO1         EXAMPLE_I2S_DIN_IO1     // I2S data in io number
 
-#define EXAMPLE_BUFF_SIZE               2048
+#define EXAMPLE_BUFF_SIZE               16000
 
 static i2s_chan_handle_t                tx_chan;        // I2S tx channel handler
 static i2s_chan_handle_t                rx_chan;        // I2S rx channel handler
 
 #define SAMPLE_RATE 44100
-#define FREQUENCY 1000
-#define SAMPLE_COUNT 44
+#define SAMPLE_COUNT 440
 
-static void i2s_example_write_task(void *args)
-{
-    // Puffer für die Samples
-    uint8_t *w_buf = (uint8_t *)calloc(1, EXAMPLE_BUFF_SIZE);
-    assert(w_buf); // Check if w_buf allocation is successful
+const char *TAG = "pcm";
 
-    // Sinuswellen-Samples generieren
-    for (int i = 0; i < SAMPLE_COUNT; i++) {
-        double sample = sin(2.0 * M_PI * i / SAMPLE_COUNT);
-        int16_t sample_int = (int16_t)(sample * INT16_MAX);
-        w_buf[2 * i] = sample_int & 0xFF; // Niedriges Byte
-        w_buf[2 * i + 1] = (sample_int >> 8) & 0xFF; // Hohes Byte
+typedef struct {
+    char riff_header[4];
+    uint32_t wav_size;
+    char wave_header[4];
+    char fmt_header[4];
+    uint32_t fmt_chunk_size;
+    uint16_t audio_format;
+    uint16_t num_channels;
+    uint32_t sample_rate;
+    uint32_t byte_rate;
+    uint16_t sample_alignment;
+    uint16_t bit_depth;
+    char data_header[4];
+    uint32_t data_bytes;
+} wav_header_t;
+
+static void i2s_example_write_task(void *args) {
+    const char *file_name = "/sdcard/general/correct.wav";
+    
+    FILE *f = fopen(file_name, "rb");
+    if (!f) {
+        ESP_LOGE(TAG, "Failed to open file for reading");
+        vTaskDelete(NULL);
+        return;
     }
 
-    size_t w_bytes = EXAMPLE_BUFF_SIZE;
+    // Read and parse the WAV header
+    wav_header_t wav_header;
+    fread(&wav_header, sizeof(wav_header), 1, f);
 
-    // Optional: Preload the data before enabling the TX channel
-    while (w_bytes == EXAMPLE_BUFF_SIZE) {
-        ESP_ERROR_CHECK(i2s_channel_preload_data(tx_chan, w_buf, EXAMPLE_BUFF_SIZE, &w_bytes));
-    }
 
+    size_t free_heap = esp_get_free_heap_size();
+    printf("Free heap size: %d bytes\n", free_heap);
+    size_t buffer_size = EXAMPLE_BUFF_SIZE;
+    uint8_t *buffer = (uint8_t *)malloc(buffer_size);
+
+    free_heap = esp_get_free_heap_size();
+    printf("Free heap size: %d bytes\n", free_heap);
     // Enable the TX channel
     ESP_ERROR_CHECK(i2s_channel_enable(tx_chan));
-    while (1) {
-        // Write I2S data
-        if (i2s_channel_write(tx_chan, w_buf, EXAMPLE_BUFF_SIZE, &w_bytes, 1000) == ESP_OK) {
-            printf("Write Task: I2S write %d bytes\n", w_bytes);
-        } else {
-            printf("Write Task: I2S write failed\n");
+    size_t bytes_read;
+    while ((bytes_read = fread(buffer, 1, buffer_size, f)) > 0) {
+        size_t bytes_written;
+        ESP_ERROR_CHECK(i2s_channel_write(tx_chan, buffer, bytes_read, &bytes_written, portMAX_DELAY));
+        if (bytes_written < bytes_read) {
+            fseek(f, bytes_written - bytes_read, SEEK_CUR);
         }
-        vTaskDelay(pdMS_TO_TICKS(200));
     }
-    free(w_buf);
+
+    free(buffer);
+    fclose(f);
     vTaskDelete(NULL);
 }
 
@@ -93,7 +114,7 @@ static void i2s_example_init_std_duplex(void)
     ESP_ERROR_CHECK(i2s_channel_init_std_mode(rx_chan, &std_cfg));
 }
 
-void setup_pcm_audio() {
+void setup_pcm_audio(const char *file_name) {
     i2s_example_init_std_duplex();
-    xTaskCreate(i2s_example_write_task, "i2s_example_write_task", 4096, NULL, 5, NULL);
+    xTaskCreate(i2s_example_write_task, "i2s_example_write_task", 8192, (void *)file_name, 4, NULL);
 }

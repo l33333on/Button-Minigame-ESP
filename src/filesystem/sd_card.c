@@ -142,56 +142,19 @@ void setup_sd_card(void)
     // Card has been initialized, print its properties
     sdmmc_card_print_info(stdout, card);
 
-    // Use POSIX and C standard library functions to work with files.
-
-    // First create a file.
-    const char *file_hello = MOUNT_POINT"/hello.txt";
-    char data[EXAMPLE_MAX_CHAR_SIZE];
-    snprintf(data, EXAMPLE_MAX_CHAR_SIZE, "%s %s!\n", "Hello", card->cid.name);
-    ret = s_example_write_file(file_hello, data);
-    if (ret != ESP_OK) {
-        return;
-    }
-
-    const char *file_foo = MOUNT_POINT"/foo.txt";
-
-    // Check if destination file exists before renaming
-    struct stat st;
-    if (stat(file_foo, &st) == 0) {
-        // Delete it if it exists
-        unlink(file_foo);
-    }
-
-    // Rename original file
-    ESP_LOGI(TAG, "Renaming file %s to %s", file_hello, file_foo);
-    if (rename(file_hello, file_foo) != 0) {
-        ESP_LOGE(TAG, "Rename failed");
-        return;
-    }
-
-    ret = s_example_read_file(file_foo);
-    if (ret != ESP_OK) {
-        return;
-    }
-
-    const char *file_nihao = MOUNT_POINT"/nihao.txt";
-    memset(data, 0, EXAMPLE_MAX_CHAR_SIZE);
-    snprintf(data, EXAMPLE_MAX_CHAR_SIZE, "%s %s!\n", "Nihao", card->cid.name);
-    ret = s_example_write_file(file_nihao, data);y
-    if (ret != ESP_OK) {
-        return;
-    }
+    const char *file_nihao = MOUNT_POINT"/general/correct.wav";
 
     //Open file for reading
     ret = s_example_read_file(file_nihao);
     if (ret != ESP_OK) {
+        printf("error");
         return;
     }
 
     // All done, unmount partition and disable SPI peripheral
-    esp_vfs_fat_sdcard_unmount(mount_point, card);
-    ESP_LOGI(TAG, "Card unmounted");
+    // esp_vfs_fat_sdcard_unmount(mount_point, card);
+    // ESP_LOGI(TAG, "Card unmounted");
 
     //deinitialize the bus after all devices are removed
-    spi_bus_free(host.slot);
+    // spi_bus_free(host.slot);
 }

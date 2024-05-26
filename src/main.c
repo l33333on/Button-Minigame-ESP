@@ -8,5 +8,5 @@ void app_main()
 {
     setup_gpios();
     setup_sd_card();
-    setup_pcm_audio();
+    setup_pcm_audio("sdcard/general/correct.wav");
 }
