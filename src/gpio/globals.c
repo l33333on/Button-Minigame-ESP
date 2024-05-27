@@ -14,7 +14,10 @@ mcp23x17_t *io_expander_devs[3];
 IOExpanderPort IOExpanderInputs[19];
 IOExpanderPort IOExpanderOutputs[19];
 
-void init_gpio_globals() {
+uart_port_t uart_raspberry_port;
+QueueHandle_t uart_queue;
+
+esp_err_t init_gpio_globals() {
     memset(&io_expander_dev1, 0, sizeof(mcp23x17_t));
     memset(&io_expander_dev2, 0, sizeof(mcp23x17_t));
     memset(&io_expander_dev3, 0, sizeof(mcp23x17_t));
@@ -27,6 +30,7 @@ void init_gpio_globals() {
     io_expander_devs[0] = &io_expander_dev1;
     io_expander_devs[1] = &io_expander_dev2;
     io_expander_devs[2] = &io_expander_dev3;
+    
     IOExpanderInputs[0] = ON_OFF_BTN;
     IOExpanderInputs[1] = MODE_SEL_BTN;
     IOExpanderInputs[2] = SPEED_SEL_BTN;
@@ -66,4 +70,6 @@ void init_gpio_globals() {
     IOExpanderOutputs[16] = INPUT14_LED;
     IOExpanderOutputs[17] = INPUT15_LED;
     IOExpanderOutputs[18] = INPUT16_LED;
+    
+    return ESP_OK;
 }

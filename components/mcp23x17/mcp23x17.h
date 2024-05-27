@@ -153,7 +153,7 @@ esp_err_t mcp23x17_free_desc_spi(mcp23x17_t *dev);
  * @brief Enable or disable hardware addressing (usage of pins A0..A2).
  *
  * Works only with MCP23S17.
- * Warining! According to the datasheet, hardware addressing is disabled by default.
+ * Warining! According to the datasheet, hardware addressing is DISABLED by default.
  *
  * @param dev Pointer to device descriptor
  * @param enable `true` to enable hardware addressing
@@ -208,7 +208,7 @@ esp_err_t mcp23x17_port_set_mode(mcp23x17_t *dev, uint16_t val);
 /**
  * @brief Get GPIO pullups status
  *
- * 0 - pullup disabled, 1 - pullup enabled for each bit in `val`
+ * 0 - pullup DISABLED, 1 - pullup enabled for each bit in `val`
  *
  * @param dev Pointer to device descriptor
  * @param[out] val Pullup status, 0 bit for PORTA/GPIO0..15 bit for PORTB/GPIO7
@@ -221,7 +221,7 @@ esp_err_t mcp23x17_get_int_pin_states(mcp23x17_t *dev, uint16_t *val);
 /**
  * @brief Set GPIO pullups status
  *
- * 0 - pullup disabled, 1 - pullup enabled for each bit in `val`
+ * 0 - pullup DISABLED, 1 - pullup enabled for each bit in `val`
  *
  * @param dev Pointer to device descriptor
  * @param val Pullup status, 0 bit for PORTA/GPIO0..15 bit for PORTB/GPIO7
