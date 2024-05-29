@@ -227,6 +227,7 @@ static void game_1_btn_callback(const IOExpanderPort *button) {
                             mcp23x17_set_level(IOExpanderOutputs[j].io_expander_dev, IOExpanderOutputs[j].io_port, state);
                             vTaskDelay(pdMS_TO_TICKS(333));
                         }
+                        state = !state;
                     }
                     init_game();
                     reset_leds();
