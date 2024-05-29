@@ -11,6 +11,7 @@
 #include "string.h"
 #include "gpio/serial.h"
 #include "gpio/types.h"
+#include "gpio/logic/tasks.h"
 
 #define BIT_BUTTON_CHANGED BIT(0)
 
@@ -65,18 +66,18 @@ static void gpio_isr_task(void *pvParameters)
                         IOExpanderInputs[j].last_trigger_time = now;
  
                         // call callback function
-
                         // these buttons should always work
-                        if (strcmp(IOExpanderInputs[j].name, "ON_OFF_BTN") == 0) {
-                            on_off_btn_callback();
-                        }else
+                        printf("%s\n", IOExpanderInputs[j].name);
+                        // if (strcmp(IOExpanderInputs[j].name, "ON_OFF_BTN") == 0) {
+                        //     on_off_btn_callback();
+                        // } else
                         if (strcmp(IOExpanderInputs[j].name, "MODE_SEL_BTN") == 0) {
                             mode_sel_btn_callback();
-                        }else
+                        } else
                         if (strcmp(IOExpanderInputs[j].name, "SPEED_SEL_BTN") == 0) {
                             speed_sel_btn_callback();
-                        } else {
-                            normal_btn_callback(IOExpanderInputs[j].name);
+                        } else if (!game.is_playing_sound && game.initialized && !game.is_evaluating) {
+                            normal_btn_callback(&IOExpanderInputs[j]);  // these buttons should only work when the game is running
                         }
                     }
                     break;
@@ -89,7 +90,7 @@ static void gpio_isr_task(void *pvParameters)
     }
 }
 
-static void set_on_off_led(Color color) {
+void set_on_off_led(Color color) {
     mcp23x17_set_level(ON_OFF_LED_R.io_expander_dev, ON_OFF_LED_R.io_port, true);  // switch (open contacs) relay
     mcp23x17_set_level(ON_OFF_LED_G.io_expander_dev, ON_OFF_LED_G.io_port, true);  // switch (open contact) relay
     mcp23x17_set_level(ON_OFF_LED_B.io_expander_dev, ON_OFF_LED_B.io_port, true);  // switch (open contact) relay
@@ -117,28 +118,24 @@ static void on_off_button_led_task(void *pvParameters) {
     for (;;) {
         vTaskDelay(pdMS_TO_TICKS(delay));
     
-        if (game.is_on && game.initialized && !game.is_running) {
+        if (game.initialized) {
             // set BLUE blink delay to 1s
             delay = 1000;
             is_blinking = true;
-        } else if(game.is_on && !game.initialized) {
+        }else {
             // set BLUE blink delay to 2s
             delay = 500;
             is_blinking = true;
-        } else if (!game.is_on) {
-            // disable on off led
-            delay = 500;
-            is_blinking = false;
         }
 
-        if (!game. is_custom_led_state_showing) {  // for example when we indicate which game is running
+        if (!game.is_evaluating) {
             set_on_off_led(color);
             if (is_blinking) {
                 color = color == DISABLED ? BLUE : DISABLED;
             } else {
                 color = DISABLED;
             }
-        }
+        } 
     }
 }
 
@@ -206,4 +203,5 @@ void setup_gpios() {
     ESP_ERROR_CHECK(init_raspberry_serial_port());
     init_io_expanders();
     init_gpio_logic_globals();
+    xTaskCreate(blink_buttons_task, "blink_buttons_task", 4096, NULL, 5, NULL);
 }

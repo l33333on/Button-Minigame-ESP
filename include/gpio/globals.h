@@ -10,7 +10,7 @@ extern mcp23x17_t io_expander_dev3;
 
 extern mcp23x17_t *io_expander_devs[3];
 
-extern IOExpanderPort IOExpanderInputs[19];
+extern IOExpanderPort IOExpanderInputs[18];
 extern IOExpanderPort IOExpanderOutputs[19];
 
 extern uart_port_t uart_raspberry_port;

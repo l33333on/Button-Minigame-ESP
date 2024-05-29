@@ -9,15 +9,15 @@ const char *cmd_play_fast;
 const char *cmd_play_normal;
 const char *cmd_play_slow;
 const char *cmd_play_sound_prefix;
+const char *cmd_play_game_sound_prefix;
+uint8_t blinking_leds[2];
 
 void init_gpio_logic_globals() {
-    game.is_on = false;
     game.current_gamemode = 1;
     game.initialized = false;
-    game.is_running = false;
-    game.is_custom_led_state_showing = false;
     game.is_playing_sound = false;
     game.reaction_speed = MEDIUM;
+    game.is_evaluating = false;
 
     cmd_play_correct = "play_correct";
     cmd_play_wrong = "play_wrong";
@@ -27,4 +27,8 @@ void init_gpio_logic_globals() {
     cmd_play_normal = "play_normal";
     cmd_play_slow = "play_slow";
     cmd_play_sound_prefix = "play_sound_";
+    cmd_play_game_sound_prefix = "play_game_";
+
+    blinking_leds[0] = 0;
+    blinking_leds[1] = 0;
 }
