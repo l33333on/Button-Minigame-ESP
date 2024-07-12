@@ -13,7 +13,7 @@ void app_main()
 {
     setup_gpios();
     init_game();
-    vTaskDelay(pdMS_TO_TICKS(60 * 1000)); // initially wait 60s to make sure the raspberry started properly
+    vTaskDelay(pdMS_TO_TICKS(10 * 1000)); // initially wait 60s to make sure the raspberry started properly
     init_game();
     game.initialized = true;
 }
