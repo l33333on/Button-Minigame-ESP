@@ -71,7 +71,7 @@ void init_game() {  // function which initialized the GamemodeData structure of 
 
             // randomly assign buttons to sounds
             uint8_t numbers[16];
-            for (uint8_t i = 0; i < 16; ++i) {
+            for (uint8_t i = 0; i < 16; i++) {
                 numbers[i] = i + 1;
             }
             shuffle_array(numbers, 16);
@@ -194,6 +194,7 @@ static void game_1_btn_callback(const IOExpanderPort *button) {
             break;
         case FIRST_SELECTED:
             game.is_evaluating = true;
+            set_on_off_led(BLUE);
 
             // blink button
             blinking_leds[1] = button->id;
@@ -204,8 +205,9 @@ static void game_1_btn_callback(const IOExpanderPort *button) {
             // check if correct
             if (is_correct(blinking_leds[0], blinking_leds[1])) {
                 // play sound, show green led
-                play_sound(cmd_play_correct);
                 set_on_off_led(GREEN);
+                play_sound(cmd_play_correct);
+                
                 // illuminate both leds
                 set_led_state(blinking_leds[0], true);
                 set_led_state(blinking_leds[1], true);
@@ -236,8 +238,9 @@ static void game_1_btn_callback(const IOExpanderPort *button) {
                 }
             } else {  // is wrong
                 // play sound, show red led
-                play_sound(cmd_play_wrong);
                 set_on_off_led(RED);
+                play_sound(cmd_play_wrong);
+                
                 set_led_state(blinking_leds[0], false);
                 set_led_state(blinking_leds[1], false);
                 blinking_leds[0] = 0;
@@ -258,12 +261,12 @@ static void game_3_btn_callback(const IOExpanderPort *button) {
     
 }
 
-static bool is_button_is_already_used(const IOExpanderPort *button) {
+static bool is_button_already_used(const IOExpanderPort *button) {
     return game.current_gamemodedata.gamemode_sound_recognition_data.used_btns[button->id];
 }
 
 void normal_btn_callback(const IOExpanderPort *button) {
-    if (is_button_is_already_used(button)) {
+    if (is_button_already_used(button)) {
         printf("already used\n");
         return;
     }
